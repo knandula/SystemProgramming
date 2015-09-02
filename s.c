@@ -86,13 +86,13 @@ int main(int argc, char *argv[])
    if(n<0)
      return -1;
     else {
-        while(n--){
-         if(namelist[n]->d_type == DT_DIR)
-           printf("%s%s\n",KBLU,namelist[n]->d_name);
+        while(i<n){
+         if(namelist[i]->d_type == DT_DIR)
+           printf("%s%s\n",KBLU,namelist[i]->d_name);
            else
-            printf("%s%s\n",KWHT,namelist[n]->d_name);
+            printf("%s%s\n",KWHT,namelist[i]->d_name);
 
-         free(namelist[n]);
+         free(namelist[i]);
          i++;
         }
         free(namelist);
