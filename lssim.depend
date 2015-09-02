@@ -1,0 +1,17 @@
+# depslib dependency file v1.0
+1441198929 source:/home/ubuntu/lssim/sl.c
+
+1441198985 source:/home/ubuntu/lssim/sl.cpp
+	<stdio.h>
+	<dirent.h>
+	<unistd.h>
+	<sys/types.h>
+
+1441204141 source:/home/ubuntu/lssim/s.c
+	<sys/stat.h>
+	<fcntl.h>
+	<dirent.h>
+	<unistd.h>
+	<stdio.h>
+	<time.h>
+
