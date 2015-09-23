@@ -1,7 +1,7 @@
 #include  <stdio.h>
 #include <unistd.h>
 #include <signal.h>
-
+#include <stdlib.h>
 
 int  main(void)
 {
@@ -9,10 +9,7 @@ int  main(void)
     int i=0;
     int j=0;
     int col,row;
-    
-    printf("rows?");
     scanf("%d",&row);
-    printf("cols?");
     scanf("%d",&col);
     int arr[row][col];
     
@@ -21,14 +18,7 @@ int  main(void)
       for(j=0;j<col;j++)
         scanf("%d",&arr[i][j]);
     
-     for(i=0;i<row;i++)    
-       for(j=0;j<col;j++)
-       {
-         printf("%d",arr[i][j]);
-         printf("\n");
-       }
-  
-    
+   
    for ( i=0;i<row;i++)
     {
         pid_t pid = fork();
@@ -41,7 +31,7 @@ int  main(void)
         if(pid == 0)
         {
         printf("Child pid : %d, Sum of row : %d is : %d\n",getpid(),i,sum);
-        kill(cpid ,SIGKILL);
+        exit(0);
         }
        sum=0;
        
