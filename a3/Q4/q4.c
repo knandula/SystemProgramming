@@ -13,7 +13,8 @@ int main()
   int sockint, s, namelen, client_address_size;
   struct sockaddr_in client, server;
   char buf[150];
-  int sum=0;
+  int sum=0,i=0;
+ 
   s = socket(AF_INET, SOCK_DGRAM, 0);
   
     if( s == -1 )
@@ -46,17 +47,9 @@ int main()
     {
     client_address_size = sizeof( client );
     if(recvfrom(s,buf,sizeof(buf), 0, (struct sockaddr *) &client, &client_address_size) >= 0 )
-    printf("String received : %s\n",buf);
-    
-    for(int i=0;strlen(buf);i++)
     {
-        sum += (int)buf[i];
+        printf("String received : %s\n",buf);
     }
-    
-    printf("Sum sent: %d",sum);
-    sendto(s,sum,(strlen(buf)+1),0,&server,sizeof(server));
-    sum = 0;
-    
     }
     
     return 0;

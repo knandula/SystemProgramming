@@ -10,7 +10,7 @@ main( argc, argv)
 int argc;
 char **argv;
 {
-	int s;
+	int s,server_address_size;
 	unsigned short port;
 	struct sockaddr_in server;
 	char buf[150];
@@ -26,10 +26,7 @@ char **argv;
         printf("Type string to send :");
         scanf("%s",buf);
         sendto(s,buf,(strlen(buf)+1),0,&server,sizeof(server));
-        
-    client_address_size = sizeof( client );
-    if(recvfrom(s,buf,sizeof(buf), 0, (struct sockaddr *) &client, &client_address_size) >= 0 )
-        printf("Sum received : %s\n",buf);
+  
     
         
         //if(strcmp(buf,"quit") != 0)
