@@ -52,9 +52,10 @@ void func(int sockfd)
         }
     }
 }
+
 int main()
 {
-    int sockfd,connfd,len;
+    int sockfd,connfd,len,namelen;
     struct sockaddr_in servaddr,cli;
     sockfd=socket(AF_INET,SOCK_STREAM,0);
     
@@ -67,25 +68,28 @@ int main()
         printf("Socket successfully created..\n");
         
     bzero(&servaddr,sizeof(servaddr));
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_port = 0; /* use first available port number */
+    servaddr.sin_addr.s_addr = INADDR_ANY;
     
-    servaddr.sin_family=AF_INET;
-    servaddr.sin_addr.s_addr=htonl(INADDR_ANY);
-    servaddr.sin_port=htons(PORT);
     
-    if((bind(sockfd,(SA*)&servaddr, sizeof(servaddr)))!=0)
-    {
-    printf("socket bind failed...\n");
-    exit(0);
+    if(bind(sockfd, &servaddr, sizeof(servaddr)) < 0) {
+        printf("Error binding server.\n");
+        exit(3);
     }
-    else
-    printf("Socket successfully binded..\n");
+    
     if((listen(sockfd,5))!=0)
     {
-    printf("Listen failed...\n");
-    exit(0);
+        printf("Listen failed...\n");
+        exit(0);
     }
-    else
-    printf("Server listening..\n");
+    namelen = sizeof(servaddr);
+    if(getsockname( sockfd, (struct sockaddr *) &servaddr, &namelen) < 0 )
+    {
+    perror("getsockname()\n");
+    return -1;
+    }
+    printf("Server listening..%d \n",htons(servaddr.sin_port));
     
     len=sizeof(cli);
     connfd=accept(sockfd,(SA *)&cli,&len);
