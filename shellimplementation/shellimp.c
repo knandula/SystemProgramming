@@ -7,52 +7,35 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <termios.h>
-#include "util.h"
+#include "defndec.h"
 
 #define LIMIT 256 
 #define MAXLINE 1024 
 
-void init(){
+void bootstrap(){
 
-        GBSH_PID = getpid();
-        GBSH_IS_INTERACTIVE = isatty(STDIN_FILENO);  
+processid = getpid();
+shellbash = isatty(STDIN_FILENO);  
 
-		if (GBSH_IS_INTERACTIVE) {			
-			while (tcgetpgrp(STDIN_FILENO) != (GBSH_PGID = getpgrp()))
-					kill(GBSH_PID, SIGTTIN);             
-	              
-	              
+if (shellbash) {			
+	while (tcgetpgrp(STDIN_FILENO) != (parentPID = getpgrp()))
+		kill(processid, SIGTTIN);
+		act_child.sa_handler = signalHandler_child;
+		act_int.sa_handler = signalHandler_int;
+		sigaction(SIGCHLD, &act_child, 0);
+		sigaction(SIGINT, &act_int, 0);
+		setpgid(processid, processid); 
+		parentPID = getpgrp();
 
-			act_child.sa_handler = signalHandler_child;
-			act_int.sa_handler = signalHandler_int;				
-			
-			sigaction(SIGCHLD, &act_child, 0);
-			sigaction(SIGINT, &act_int, 0);		
-			
-			setpgid(GBSH_PID, GBSH_PID); 
-			GBSH_PGID = getpgrp();
-			if (GBSH_PID != GBSH_PGID) {
-					printf("Error, the shell is not process group leader");
-					exit(EXIT_FAILURE);
-			}
-
-			tcsetpgrp(STDIN_FILENO, GBSH_PGID);  
-			
-
-			tcgetattr(STDIN_FILENO, &GBSH_TMODES);
-
-
-			currentDirectory = (char*) calloc(1024, sizeof(char));
-        } else {
-                printf("Could not make the shell interactive.\n");
-                exit(EXIT_FAILURE);
-        }
+if (processid != parentPID) {
+exit(EXIT_FAILURE);
 }
-
-
-void welcomeScreen(){
-        printf("\t               Shell Initialized...\n");   
-        printf("\n\n");
+tcsetpgrp(STDIN_FILENO, parentPID);
+tcgetattr(STDIN_FILENO, &bashmodes);
+currentDirectory = (char*) calloc(1024, sizeof(char));
+} else {
+exit(EXIT_FAILURE);
+}
 }
 
 void signalHandler_child(int p){
@@ -60,8 +43,6 @@ void signalHandler_child(int p){
 	}
 	printf("\n");
 }
-
-
 void signalHandler_int(int p){	
 	if (kill(pid,SIGTERM) == 0){
 		printf("\nProcess %d received a SIGINT signal\n",pid);
@@ -71,12 +52,10 @@ void signalHandler_int(int p){
 	}
 }
 
-
-void shellPrompt(){	
+void prompt(){	
 	char hostn[1204] = "";
 	gethostname(hostn, sizeof(hostn));
-	printf("%s > ", getcwd(currentDirectory, 1024));
-	//printf("%s@%s %s > ", getenv("LOGNAME"), hostn, getcwd(currentDirectory, 1024));
+	printf("%s@%s %s > ", getenv("LOGNAME"), hostn, getcwd(currentDirectory, 1024));
 }
 
 int changeDirectory(char* args[]){	
@@ -94,7 +73,7 @@ int changeDirectory(char* args[]){
 }
 
 
-int manageEnviron(char * args[], int option){
+int setbase(char * args[], int option){
 	char **env_aux;
 	switch(option){		
 		case 0: 
@@ -123,7 +102,7 @@ int manageEnviron(char * args[], int option){
 			break;
 		case 2:
 			if(args[1] == NULL){
-				printf("%s","Not enought input arguments\n");
+				printf("%s","Check input arguments\n");
 				return -1;
 			}
 			if(getenv(args[1]) != NULL){
@@ -139,7 +118,7 @@ int manageEnviron(char * args[], int option){
 	return 0;
 }
  
-void launchProg(char **args, int background){	 
+void fireprogram(char **args, int background){	 
 	 int err = -1;
 	 
 	 if((pid=fork())==-1){
@@ -163,17 +142,13 @@ void launchProg(char **args, int background){
 	 }	 
 }
 void fileIO(char * args[], char* inputFile, char* outputFile, int option){
-	 
 	int err = -1;
-	
-	int fileDescriptor; 
-	
+	int fileDescriptor;
 	if((pid=fork())==-1){
 		printf("Child process could not be created\n");
 		return;
 	}
 	if(pid==0){
-
 		if (option == 0){
 			fileDescriptor = open(outputFile, O_CREAT | O_TRUNC | O_WRONLY, 0600); 
 			dup2(fileDescriptor, STDOUT_FILENO); 
@@ -186,9 +161,7 @@ void fileIO(char * args[], char* inputFile, char* outputFile, int option){
 			dup2(fileDescriptor, STDOUT_FILENO);
 			close(fileDescriptor);		 
 		}
-		 
-		setenv("parent",getcwd(currentDirectory, 1024),1);
-		
+		setenv("parent",getcwd(currentDirectory, 1024),1);		
 		if (execvp(args[0],args)==err){
 			printf("err");
 			kill(getpid(),SIGTERM);
@@ -197,25 +170,13 @@ void fileIO(char * args[], char* inputFile, char* outputFile, int option){
 	waitpid(pid,NULL,0);
 }
 
-void pipeHandler(char * args[]){
+void processpipes(char * args[]){
 	int filedes[2]; 
 	int filedes2[2];
-	
 	int num_cmds = 0;
-	
 	char *command[256];
-	
 	pid_t pid;
-	
-	int err = -1;
-	int end = 0;
-	
-
-	int i = 0;
-	int j = 0;
-	int k = 0;
-	int l = 0;
-
+	int err = -1,end=0,i=0,j=0,k=0,l=0;
 	while (args[l] != NULL){
 		if (strcmp(args[l],"|") == 0){
 			num_cmds++;
@@ -309,18 +270,14 @@ void pipeHandler(char * args[]){
 	}
 }
 
-int commandHandler(char * args[]){
+int invoke(char * args[]){
 	int i = 0;
-	int j = 0;
-	
+	int j = 0;	
 	int fileDescriptor;
-	int standardOut;
-	
+	int standardOut;	
 	int aux;
-	int background = 0;
-	
-	char *args_aux[256];
-	
+	int background = 0;	
+	char *args_aux[256];	
 	while ( args[j] != NULL){
 		if ( (strcmp(args[j],">") == 0) || (strcmp(args[j],"<") == 0) || (strcmp(args[j],"&") == 0)){
 			break;
@@ -328,14 +285,11 @@ int commandHandler(char * args[]){
 		args_aux[j] = args[j];
 		j++;
 	}
-	
-
 	if(strcmp(args[0],"exit") == 0) exit(0);
  	else if (strcmp(args[0],"pwd") == 0){
 		if (args[j] != NULL){
 			if ( (strcmp(args[j],">") == 0) && (args[j+1] != NULL) ){
 				fileDescriptor = open(args[j+1], O_CREAT | O_TRUNC | O_WRONLY, 0600); 
-				
 				standardOut = dup(STDOUT_FILENO); 	
 				dup2(fileDescriptor, STDOUT_FILENO); 
 				close(fileDescriptor);
@@ -352,31 +306,30 @@ int commandHandler(char * args[]){
 		if (args[j] != NULL){
 			if ( (strcmp(args[j],">") == 0) && (args[j+1] != NULL) ){
 				fileDescriptor = open(args[j+1], O_CREAT | O_TRUNC | O_WRONLY, 0600); 
-
 				standardOut = dup(STDOUT_FILENO);
 				dup2(fileDescriptor, STDOUT_FILENO); 
 				close(fileDescriptor);
-				manageEnviron(args,0);
+				setbase(args,0);
 				dup2(standardOut, STDOUT_FILENO);
 			}
 		}else{
-			manageEnviron(args,0);
+			setbase(args,0);
 		}
 	}
 
-	else if (strcmp(args[0],"setenv") == 0) manageEnviron(args,1);
-	else if (strcmp(args[0],"unsetenv") == 0) manageEnviron(args,2);
+	else if (strcmp(args[0],"setenv") == 0) setbase(args,1);
+	else if (strcmp(args[0],"unsetenv") == 0) setbase(args,2);
 	else{
 		while (args[i] != NULL && background == 0){
 			if (strcmp(args[i],"&") == 0){
 				background = 1;
 			}else if (strcmp(args[i],"|") == 0){
-				pipeHandler(args);
+				processpipes(args);
 				return 1;
 			}else if (strcmp(args[i],"<") == 0){
 				aux = i+1;
 				if (args[aux] == NULL || args[aux+1] == NULL || args[aux+2] == NULL ){
-					printf("Not enough input arguments\n");
+					printf("check input arguments\n");
 					return -1;
 				}else{
 					if (strcmp(args[aux+1],">") != 0){
@@ -389,7 +342,7 @@ int commandHandler(char * args[]){
 			}			
 			else if (strcmp(args[i],">") == 0){
 				if (args[i+1] == NULL){
-					printf("Not enough input arguments\n");
+					printf("check input arguments\n");
 					return -1;
 				}
 				fileIO(args_aux,NULL,args[i+1],0);
@@ -397,7 +350,7 @@ int commandHandler(char * args[]){
 			}
 			i++;
 		}
-		launchProg(args_aux,background);
+		fireprogram(args_aux,background);
 		
 	}
 return 1;
@@ -406,25 +359,21 @@ return 1;
 int main(int argc, char *argv[], char ** envp) {
 	char line[MAXLINE]; 
 	char * tokens[LIMIT]; 
-	int numTokens;
-		
+	int numTokens;		
 	no_reprint_prmpt = 0; 				
 	pid = -10; 	
-	init();
-	welcomeScreen();
+	bootstrap();
 	environ = envp;	
 	setenv("shell",getcwd(currentDirectory, 1024),1);
 	while(TRUE){
-		if (no_reprint_prmpt == 0) shellPrompt();
+		if (no_reprint_prmpt == 0) prompt();
 		no_reprint_prmpt = 0;
 		memset ( line, '\0', MAXLINE );
 		fgets(line, MAXLINE, stdin);
 		if((tokens[0] = strtok(line," \n\t")) == NULL) continue;
 		numTokens = 1;
 		while((tokens[numTokens] = strtok(NULL, " \n\t")) != NULL) numTokens++;		
-		commandHandler(tokens);
-		
+		invoke(tokens);	
 	}          
-
 	exit(0);
 }
